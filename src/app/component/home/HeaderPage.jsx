@@ -17,11 +17,7 @@ const HeaderPage = () => {
     <header style={headerStyle}>
       <div style={{ fontSize: '24px', fontWeight: 'bold' }}>Logo</div>
       <nav>
-        <ul style={{ display: 'flex', listStyle: 'none', gap: '20px', margin: 0, padding: 0 }}>
-          <li><a href="#home" style={{ color: '#fff', textDecoration: 'none' }}>Trang chủ</a></li>
-          <li><a href="#about" style={{ color: '#fff', textDecoration: 'none' }}>Giới thiệu</a></li>
-          <li><a href="#contact" style={{ color: '#fff', textDecoration: 'none' }}>Liên hệ</a></li>
-        </ul>
+       
       </nav>
     </header>
   );
