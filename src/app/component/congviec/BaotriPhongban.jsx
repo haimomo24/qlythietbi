@@ -2,25 +2,26 @@
 
 import React, { useState, useEffect } from "react";
 
-const BaotriPage = () => {
+const BaotriPhongban = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Lấy URL Backend linh hoạt theo Hostname
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || `http://${typeof window !== "undefined" ? window.location.hostname : "localhost"}:5000`;
+  const API_URL =
+    process.env.NEXT_PUBLIC_API_URL ||
+    `http://${typeof window !== "undefined" ? window.location.hostname : "localhost"}:5000`;
 
-  // 1. Fetch dữ liệu từ API
+  // Fetch dữ liệu từ API
   const fetchBaoTri = async () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`${API_URL}/api/btriserver`);
+      const res = await fetch(`${API_URL}/api/btriphongban`);
       const result = await res.json();
       if (result.success) {
         setData(result.data);
       } else {
-        setError(result.message || "Lỗi khi lấy dữ liệu bảo trì.");
+        setError(result.message || "Lỗi khi lấy dữ liệu bảo trì phòng ban.");
       }
     } catch (err) {
       console.error("Fetch Error:", err);
@@ -34,19 +35,24 @@ const BaotriPage = () => {
     fetchBaoTri();
   }, []);
 
-  // 2. Thêm một lượt bảo trì mới
+  // Thêm lượt bảo trì mới
   const handleAddRow = async () => {
-    const formData = new FormData();
-    formData.append("ngay_thang", new Date().toISOString().split("T")[0]);
-    formData.append("noi_dung", "Nội dung bảo trì mới");
-    formData.append("tinh_trang", "Đang xử lý");
-    formData.append("nhan_vien", "");
-    formData.append("ghi_chu", "");
+    const payload = {
+      ngay_thang: new Date().toISOString().split("T")[0],
+      phong_ban: "",
+      nguoi_su_dung: "",
+      noi_dung: "",
+      lich_su_bao_tri: "",
+      tinh_trang: "Đang xử lý",
+      nv_bao_tri: "",
+      ghi_chu: "",
+    };
 
     try {
-      const res = await fetch(`${API_URL}/api/btriserver`, {
+      const res = await fetch(`${API_URL}/api/btriphongban`, {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
       const result = await res.json();
       if (result.success) {
@@ -59,68 +65,46 @@ const BaotriPage = () => {
     }
   };
 
-  // 3. Cập nhật dòng khi thay đổi input (Lưu trực tiếp về DB khi blur/chỉnh sửa)
+  // Cập nhật ô khi thay đổi (lưu khi blur)
   const handleUpdateField = async (id, field, value) => {
     const rowToUpdate = data.find((item) => item.id === id);
     if (!rowToUpdate) return;
 
-    const formData = new FormData();
-    formData.append("ngay_thang", field === "ngay_thang" ? value : rowToUpdate.ngay_thang?.split("T")[0] || "");
-    formData.append("noi_dung", field === "noi_dung" ? value : rowToUpdate.noi_dung || "");
-    formData.append("tinh_trang", field === "tinh_trang" ? value : rowToUpdate.tinh_trang || "");
-    formData.append("nhan_vien", field === "nhan_vien" ? value : rowToUpdate.nhan_vien || "");
-    formData.append("ghi_chu", field === "ghi_chu" ? value : rowToUpdate.ghi_chu || "");
+    const payload = {
+      ngay_thang: field === "ngay_thang" ? value : rowToUpdate.ngay_thang?.split("T")[0] || "",
+      phong_ban: field === "phong_ban" ? value : rowToUpdate.phong_ban || "",
+      nguoi_su_dung: field === "nguoi_su_dung" ? value : rowToUpdate.nguoi_su_dung || "",
+      noi_dung: field === "noi_dung" ? value : rowToUpdate.noi_dung || "",
+      lich_su_bao_tri: field === "lich_su_bao_tri" ? value : rowToUpdate.lich_su_bao_tri || "",
+      tinh_trang: field === "tinh_trang" ? value : rowToUpdate.tinh_trang || "",
+      nv_bao_tri: field === "nv_bao_tri" ? value : rowToUpdate.nv_bao_tri || "",
+      ghi_chu: field === "ghi_chu" ? value : rowToUpdate.ghi_chu || "",
+    };
 
     try {
-      await fetch(`${API_URL}/api/btriserver/${id}`, {
+      await fetch(`${API_URL}/api/btriphongban/${id}`, {
         method: "PUT",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
     } catch (err) {
       console.error("Cập nhật thất bại:", err);
     }
   };
 
-  // Thay đổi giao diện tức thì
+  // Cập nhật state nội bộ tức thì khi gõ
   const handleInputChange = (index, field, value) => {
     const updatedData = [...data];
     updatedData[index][field] = value;
     setData(updatedData);
   };
 
-  // 4. Upload ảnh cho dòng tương ứng
-  const handleImageUpload = async (id, file) => {
-    if (!file) return;
-
-    const rowToUpdate = data.find((item) => item.id === id);
-    const formData = new FormData();
-    formData.append("ngay_thang", rowToUpdate.ngay_thang?.split("T")[0] || "");
-    formData.append("noi_dung", rowToUpdate.noi_dung || "");
-    formData.append("tinh_trang", rowToUpdate.tinh_trang || "");
-    formData.append("nhan_vien", rowToUpdate.nhan_vien || "");
-    formData.append("ghi_chu", rowToUpdate.ghi_chu || "");
-    formData.append("hinh_anh", file);
-
-    try {
-      const res = await fetch(`${API_URL}/api/btriserver/${id}`, {
-        method: "PUT",
-        body: formData,
-      });
-      const result = await res.json();
-      if (result.success) {
-        fetchBaoTri();
-      }
-    } catch (err) {
-      alert("Lỗi tải ảnh lên.");
-    }
-  };
-
-  // 5. Xóa lượt bảo trì
+  // Xóa lượt bảo trì
   const handleDeleteRow = async (id) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa lượt bảo trì này?")) return;
 
     try {
-      const res = await fetch(`${API_URL}/api/btriserver/${id}`, {
+      const res = await fetch(`${API_URL}/api/btriphongban/${id}`, {
         method: "DELETE",
       });
       const result = await res.json();
@@ -136,11 +120,13 @@ const BaotriPage = () => {
 
   return (
     <div className="w-full bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-      {/* Header */}
+      {/* Tiêu đề & Nút thêm */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Lịch bảo trì server</h1>
-          <p className="text-sm text-slate-500 mt-1">Quản lý và ghi chép nhật ký bảo trì thiết bị IT</p>
+          <h1 className="text-2xl font-bold text-slate-800">Bảo trì phòng ban</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Quản lý nhật ký và lịch sử bảo trì thiết bị tại các phòng ban
+          </p>
         </div>
         <button
           onClick={handleAddRow}
@@ -162,27 +148,29 @@ const BaotriPage = () => {
         </div>
       )}
 
-      {/* Table */}
+      {/* Bảng dữ liệu */}
       <div className="overflow-x-auto border border-slate-300 rounded-lg">
         <table className="w-full border-collapse text-left text-sm text-slate-700">
           <thead>
             <tr className="bg-slate-100 border-b border-slate-300 text-slate-800 font-bold uppercase text-xs">
               <th className="py-3 px-3 border-r border-slate-300 text-center w-14">STT</th>
               <th className="py-3 px-4 border-r border-slate-300 w-36 whitespace-nowrap">NGÀY THÁNG</th>
-              <th className="py-3 px-4 border-r border-slate-300 min-w-[280px]">NỘI DUNG</th>
-              <th className="py-3 px-4 border-r border-slate-300 w-44">TÌNH TRẠNG</th>
-              <th className="py-3 px-4 border-r border-slate-300 w-44">NHÂN VIÊN</th>
-              <th className="py-3 px-4 border-r border-slate-300 w-44 text-center">HÌNH ÁNH</th>
-              <th className="py-3 px-4 border-r border-slate-300 min-w-[200px]">GHI CHÚ</th>
+              <th className="py-3 px-4 border-r border-slate-300 w-44">PHÒNG BAN</th>
+              <th className="py-3 px-4 border-r border-slate-300 w-44">NGƯỜI SD</th>
+              <th className="py-3 px-4 border-r border-slate-300 min-w-[220px]">NỘI DUNG</th>
+              <th className="py-3 px-4 border-r border-slate-300 min-w-[220px]">LỊCH SỬ BẢO TRÌ</th>
+              <th className="py-3 px-4 border-r border-slate-300 w-40">TÌNH TRẠNG</th>
+              <th className="py-3 px-4 border-r border-slate-300 w-44">NV BẢO TRÌ</th>
+              <th className="py-3 px-4 border-r border-slate-300 min-w-[180px]">GHI CHÚ</th>
               <th className="py-3 px-3 text-center w-16">XÓA</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-300">
             {loading ? (
               <tr>
-                <td colSpan="8" className="py-8 text-center text-slate-400">
+                <td colSpan="10" className="py-8 text-center text-slate-400">
                   <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent mb-2"></div>
-                  <p>Đang tải danh sách bảo trì...</p>
+                  <p>Đang tải dữ liệu bảo trì phòng ban...</p>
                 </td>
               </tr>
             ) : data.length > 0 ? (
@@ -206,7 +194,27 @@ const BaotriPage = () => {
                     <td className="py-2.5 px-3 border-r border-slate-300">
                       <input
                         type="text"
-                        placeholder="Nhập nội dung công việc..."
+                        placeholder="Phòng ban..."
+                        value={row.phong_ban || ""}
+                        onChange={(e) => handleInputChange(index, "phong_ban", e.target.value)}
+                        onBlur={(e) => handleUpdateField(row.id, "phong_ban", e.target.value)}
+                        className="w-full bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded px-1"
+                      />
+                    </td>
+                    <td className="py-2.5 px-3 border-r border-slate-300">
+                      <input
+                        type="text"
+                        placeholder="Người sử dụng..."
+                        value={row.nguoi_su_dung || ""}
+                        onChange={(e) => handleInputChange(index, "nguoi_su_dung", e.target.value)}
+                        onBlur={(e) => handleUpdateField(row.id, "nguoi_su_dung", e.target.value)}
+                        className="w-full bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded px-1"
+                      />
+                    </td>
+                    <td className="py-2.5 px-3 border-r border-slate-300">
+                      <input
+                        type="text"
+                        placeholder="Nội dung bảo trì/thiết bị..."
                         value={row.noi_dung || ""}
                         onChange={(e) => handleInputChange(index, "noi_dung", e.target.value)}
                         onBlur={(e) => handleUpdateField(row.id, "noi_dung", e.target.value)}
@@ -216,7 +224,17 @@ const BaotriPage = () => {
                     <td className="py-2.5 px-3 border-r border-slate-300">
                       <input
                         type="text"
-                        placeholder="Nhập tình trạng..."
+                        placeholder="Lịch sử bảo trì..."
+                        value={row.lich_su_bao_tri || ""}
+                        onChange={(e) => handleInputChange(index, "lich_su_bao_tri", e.target.value)}
+                        onBlur={(e) => handleUpdateField(row.id, "lich_su_bao_tri", e.target.value)}
+                        className="w-full bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded px-1"
+                      />
+                    </td>
+                    <td className="py-2.5 px-3 border-r border-slate-300">
+                      <input
+                        type="text"
+                        placeholder="Tình trạng..."
                         value={row.tinh_trang || ""}
                         onChange={(e) => handleInputChange(index, "tinh_trang", e.target.value)}
                         onBlur={(e) => handleUpdateField(row.id, "tinh_trang", e.target.value)}
@@ -226,42 +244,12 @@ const BaotriPage = () => {
                     <td className="py-2.5 px-3 border-r border-slate-300">
                       <input
                         type="text"
-                        placeholder="Tên kỹ thuật viên..."
-                        value={row.nhan_vien || ""}
-                        onChange={(e) => handleInputChange(index, "nhan_vien", e.target.value)}
-                        onBlur={(e) => handleUpdateField(row.id, "nhan_vien", e.target.value)}
+                        placeholder="NV bảo trì..."
+                        value={row.nv_bao_tri || ""}
+                        onChange={(e) => handleInputChange(index, "nv_bao_tri", e.target.value)}
+                        onBlur={(e) => handleUpdateField(row.id, "nv_bao_tri", e.target.value)}
                         className="w-full bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded px-1"
                       />
-                    </td>
-                    <td className="py-2.5 px-3 border-r border-slate-300 text-center">
-                      {row.hinh_anh ? (
-                        <div className="relative group inline-block">
-                          <img
-                            src={`${API_URL}${row.hinh_anh}`}
-                            alt="Ảnh bảo trì"
-                            className="w-10 h-10 object-cover rounded border border-slate-200 mx-auto"
-                          />
-                          <label className="absolute inset-0 bg-black/40 text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer rounded transition-opacity">
-                            Đổi
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => handleImageUpload(row.id, e.target.files[0])}
-                            />
-                          </label>
-                        </div>
-                      ) : (
-                        <label className="text-xs text-blue-600 hover:underline cursor-pointer">
-                          + Tải ảnh
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => handleImageUpload(row.id, e.target.files[0])}
-                          />
-                        </label>
-                      )}
                     </td>
                     <td className="py-2.5 px-3 border-r border-slate-300">
                       <input
@@ -289,8 +277,8 @@ const BaotriPage = () => {
               })
             ) : (
               <tr>
-                <td colSpan="8" className="py-8 text-center text-slate-400">
-                  Chưa có dữ liệu bảo trì. Bấm <b>"+ Thêm lượt bảo trì"</b> để tạo mới.
+                <td colSpan="10" className="py-8 text-center text-slate-400">
+                  Chưa có dữ liệu bảo trì phòng ban. Bấm <b>"+ Thêm lượt bảo trì"</b> để tạo mới.
                 </td>
               </tr>
             )}
@@ -301,4 +289,4 @@ const BaotriPage = () => {
   );
 };
 
-export default BaotriPage;
+export default BaotriPhongban;

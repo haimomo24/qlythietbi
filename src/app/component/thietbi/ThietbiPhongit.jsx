@@ -2,26 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 
-const DANH_SACH_PHONG_BAN = [
-  "Phòng IT",
-    "Phòng Nhân sự",
-  "Phòng Truyền thông",
-  "Phòng Hành chính",
-  "Phòng Kế toán",
-  "Phòng Vật tư",
-  "Nhà hàng",
-  "Buồng phòng",
-  "Bếp",
-  "Bảo vệ",
-  "Bán vé",
-  "Xoát vé",
-  "Lễ tân",
-  "Kinh doanh",
-  "CSKH",
-  "Hướng dẫn viên",
-];
-
-const ThietBi = () => {
+const ThietbiPhongit = () => {
   const [listThietBi, setListThietBi] = useState([]);
   const [stats, setStats] = useState({
     tong_thiet_bi: 0,
@@ -56,21 +37,27 @@ const ThietBi = () => {
       const res = await fetch(`${API_URL}/api/thietbi`);
       const result = await res.json();
       if (result.success) {
-        setListThietBi(result.data || []);
-        if (result.stats) {
-          setStats(result.stats);
-        } else {
-          const total = result.data.length;
-          const using = result.data.filter((i) => i.tinh_trang === "Đang sử dụng").length;
-          const maintenance = result.data.filter((i) => i.tinh_trang === "Bảo trì").length;
-          const broken = result.data.filter((i) => i.tinh_trang === "Hỏng").length;
-          setStats({
-            tong_thiet_bi: total,
-            dang_su_dung: using,
-            bao_tri: maintenance,
-            hong: broken,
-          });
-        }
+        const rawData = result.data || [];
+        
+        // Lọc CHỈ LẤY thiết bị thuộc "Phòng IT"
+        const itData = rawData.filter(
+          (item) => item.phong_ban && item.phong_ban.trim().toLowerCase() === "phòng it"
+        );
+
+        setListThietBi(itData);
+
+        // Tính toán lại thống kê riêng cho Phòng IT
+        const total = itData.length;
+        const using = itData.filter((i) => i.tinh_trang === "Đang sử dụng").length;
+        const maintenance = itData.filter((i) => i.tinh_trang === "Bảo trì").length;
+        const broken = itData.filter((i) => i.tinh_trang === "Hỏng").length;
+
+        setStats({
+          tong_thiet_bi: total,
+          dang_su_dung: using,
+          bao_tri: maintenance,
+          hong: broken,
+        });
       } else {
         setError(result.message || "Không thể lấy dữ liệu thiết bị.");
       }
@@ -86,16 +73,23 @@ const ThietBi = () => {
     fetchThietBi();
   }, []);
 
-  // Lọc dữ liệu & Sắp xếp ngày GẦN NHẤT XUỐNG DƯỚI CÙNG (Tăng dần theo ngày)
+  // BỘ LỌC DỮ LIỆU: BẮT BUỘC CHỈ HIỂN THỊ PHÒNG IT & THEO TỪ KHÓA, THÁNG, NĂM
   const filteredData = listThietBi
     .filter((item) => {
+      // 1. Kiểm tra tuyệt đối: Chỉ giữ lại các mục có phòng ban là "Phòng IT"
+      const isITDepartment =
+        item.phong_ban && item.phong_ban.trim().toLowerCase() === "phòng it";
+      
+      if (!isITDepartment) return false;
+
+      // 2. Lọc theo từ khóa tìm kiếm
       const term = searchTerm.toLowerCase();
       const maMatch = item.ma_thiet_bi ? item.ma_thiet_bi.toLowerCase().includes(term) : false;
       const hangMatch = item.hang_thiet_bi ? item.hang_thiet_bi.toLowerCase().includes(term) : false;
-      const phongMatch = item.phong_ban ? item.phong_ban.toLowerCase().includes(term) : false;
       const nguoiMatch = item.nguoi_su_dung ? item.nguoi_su_dung.toLowerCase().includes(term) : false;
-      const textMatch = maMatch || hangMatch || phongMatch || nguoiMatch;
+      const textMatch = maMatch || hangMatch || nguoiMatch;
 
+      // 3. Lọc theo Tháng / Năm
       let dateMatch = true;
       if (item.ngay_nhap) {
         const dateObj = new Date(item.ngay_nhap);
@@ -115,7 +109,7 @@ const ThietBi = () => {
       return textMatch && dateMatch;
     })
     .sort((a, b) => {
-      // Sắp xếp tăng dần: Cũ ở trên, Ngày mới/gần nhất ở dưới
+      // Ngày cũ ở trên, Ngày mới/gần nhất ở dưới
       const dateA = a.ngay_nhap ? new Date(a.ngay_nhap).getTime() : 0;
       const dateB = b.ngay_nhap ? new Date(b.ngay_nhap).getTime() : 0;
       return dateA - dateB;
@@ -127,9 +121,9 @@ const ThietBi = () => {
 
   const handleAddThietBi = async () => {
     const payload = {
-      ma_thiet_bi: `TB-${Date.now().toString().slice(-4)}`,
+      ma_thiet_bi: `TB-IT-${Date.now().toString().slice(-4)}`,
       hang_thiet_bi: "Dell",
-      phong_ban: "Phòng IT",
+      phong_ban: "Phòng IT", // Mặc định tạo mới luôn gán là Phòng IT
       nguoi_su_dung: "Nguyễn Văn A",
       tinh_trang: "Đang sử dụng",
       so_luong: 1,
@@ -205,12 +199,11 @@ const ThietBi = () => {
     } catch (err) {
       console.error("Upload Error:", err);
       alert("Không thể upload hình ảnh.");
-    } finally{
+    } finally {
       setUploadingId(null);
     }
   };
 
-  // Cập nhật state dựa theo ID thiết bị thay vì vị trí mảng
   const handleInputChangeById = (id, field, value) => {
     setListThietBi((prevList) =>
       prevList.map((item) => (item.id === id ? { ...item, [field]: value } : item))
@@ -278,17 +271,17 @@ const ThietBi = () => {
       {/* Header */}
       <div className="print:hidden">
         <h1 className="text-2xl font-bold text-slate-800">
-          Quản Lý Báo Cáo Thiết Bị
+          Quản Lý Thiết Bị - Phòng IT
         </h1>
         <p className="text-sm text-slate-500 mt-1">
-          Theo dõi chi tiết hiện trạng, phòng ban bàn giao và thông tin định giá thiết bị.
+          Danh sách thiết bị công nghệ thông tin đang lưu hành và quản lý tại Phòng IT.
         </p>
       </div>
 
       {/* Thống Kê */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 print:hidden">
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
-          <p className="text-xs text-slate-500 font-medium uppercase">Tổng Thiết Bị</p>
+          <p className="text-xs text-slate-500 font-medium uppercase">Tổng Thiết Bị IT</p>
           <p className="text-2xl font-bold text-slate-800 mt-1">{stats.tong_thiet_bi || 0}</p>
         </div>
         <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200 shadow-sm text-center">
@@ -316,7 +309,7 @@ const ThietBi = () => {
             </div>
             <input
               type="text"
-              placeholder="Tìm theo Mã, Hãng, Phòng..."
+              placeholder="Tìm theo Mã, Hãng, Người dùng..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-8 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-xs"
@@ -384,7 +377,7 @@ const ThietBi = () => {
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
             </svg>
-            Thêm Thiết Bị
+            Thêm Thiết Bị IT
           </button>
         </div>
       </div>
@@ -406,7 +399,7 @@ const ThietBi = () => {
               <th scope="col" className="px-4 py-3 text-center w-12">STT</th>
               <th scope="col" className="px-4 py-3 w-32">Mã Thiết Bị</th>
               <th scope="col" className="px-4 py-3 w-40">Hãng/Thiết Bị</th>
-              <th scope="col" className="px-4 py-3 w-40">Phòng Ban</th>
+              <th scope="col" className="px-4 py-3 w-36">Phòng Ban</th>
               <th scope="col" className="px-4 py-3 w-36">Người Sử Dụng</th>
               <th scope="col" className="px-4 py-3 w-36">Tình Trạng</th>
               <th scope="col" className="px-4 py-3 text-center w-20">SL</th>
@@ -423,7 +416,7 @@ const ThietBi = () => {
               <tr>
                 <td colSpan="13" className="py-8 text-center text-slate-400">
                   <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent mb-2"></div>
-                  <p>Đang tải dữ liệu thiết bị...</p>
+                  <p>Đang tải dữ liệu thiết bị Phòng IT...</p>
                 </td>
               </tr>
             ) : filteredData.length > 0 ? (
@@ -450,26 +443,15 @@ const ThietBi = () => {
                       className="w-full bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded px-1 font-medium text-slate-800"
                     />
                   </td>
-
-                  {/* Cột Phòng Ban (Thẻ Select) */}
                   <td className="px-4 py-3">
-                    <select
-                      value={row.phong_ban || ""}
-                      onChange={(e) => {
-                        handleInputChangeById(row.id, "phong_ban", e.target.value);
-                        handleUpdateField(row.id, "phong_ban", e.target.value);
-                      }}
-                      className="w-full bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded px-1 text-slate-700 cursor-pointer font-medium"
-                    >
-                      <option value="" disabled>-- Chọn phòng ban --</option>
-                      {DANH_SACH_PHONG_BAN.map((phong, idx) => (
-                        <option key={idx} value={phong}>
-                          {phong}
-                        </option>
-                      ))}
-                    </select>
+                    {/* KHÓA Ô PHÒNG BAN: Cố định "Phòng IT" để tránh nhập nhầm làm ẩn thiết bị */}
+                    <input
+                      type="text"
+                      readOnly
+                      value="Phòng IT"
+                      className="w-full bg-slate-100/60 border-0 text-blue-700 font-semibold rounded px-2 py-1 select-none cursor-not-allowed"
+                    />
                   </td>
-
                   <td className="px-4 py-3">
                     <input
                       type="text"
@@ -533,7 +515,6 @@ const ThietBi = () => {
                     />
                   </td>
 
-                  {/* Cột Upload & Hiển thị Hình Ảnh */}
                   <td className="px-4 py-3 text-center">
                     <label className="relative inline-flex items-center justify-center cursor-pointer group">
                       <input
@@ -611,8 +592,8 @@ const ThietBi = () => {
               <tr>
                 <td colSpan="13" className="py-8 text-center text-slate-400">
                   {searchTerm || selectedMonth !== "all" || selectedYear !== "all"
-                    ? "Không tìm thấy thiết bị phù hợp với bộ lọc."
-                    : 'Chưa có dữ liệu thiết bị. Bấm "+ Thêm Thiết Bị" để tạo mới.'}
+                    ? "Không tìm thấy thiết bị Phòng IT phù hợp với bộ lọc."
+                    : 'Chưa có dữ liệu thiết bị Phòng IT. Bấm "+ Thêm Thiết Bị IT" để tạo mới.'}
                 </td>
               </tr>
             )}
@@ -623,4 +604,4 @@ const ThietBi = () => {
   );
 };
 
-export default ThietBi;
+export default ThietbiPhongit;

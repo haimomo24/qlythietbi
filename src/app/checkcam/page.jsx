@@ -1,10 +1,10 @@
 import React from 'react'
-import HeThong from '../component/hethong/HeThong'
+import CheckcamPage from '../component/checkcam/CheckcamPage'
 
 const page = () => {
   return (
     <div>
-      <HeThong/>
+       <CheckcamPage/>
     </div>
   )
 }

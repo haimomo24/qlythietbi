@@ -1,10 +1,10 @@
+import BaotriPhongban from '@/app/component/congviec/BaotriPhongban'
 import React from 'react'
-import HeThong from '../component/hethong/HeThong'
 
 const page = () => {
   return (
     <div>
-      <HeThong/>
+        <BaotriPhongban/>
     </div>
   )
 }
